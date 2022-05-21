@@ -10,8 +10,9 @@
 <div id="app">
     <h1>zalupka</h1>
     <ul>
-        <li v-for="item in items">
+        <li v-for="(item, index) in items">
             {{ item.name }}
+            <button @click="items.splice(index, 1)">-</button>
             --
             {{ item.cost }} amd
             <span v-for="person in persons">
@@ -101,15 +102,18 @@
     }
 
     const add_item = function (items, name, cost) {
-        items.push(
-            {
-                name: name,
-                cost: parseInt(cost),
-                persons: [...persons]
-            }
-        )
-        new_item.value = "item"
-        new_cost.value = 0
+        let parsedCost = parseInt(cost);
+        if(parsedCost) {
+            items.push(
+                {
+                    name: name,
+                    cost: parsedCost,
+                    persons: [...persons]
+                }
+            )
+            new_item.value = "item"
+            new_cost.value = 0
+        }
     }
 
     const calculate_shares = function (items) {
