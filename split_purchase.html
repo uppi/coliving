@@ -3,28 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://unpkg.com/vue@3"></script>
 </head>
 <body>
 
+
 <div id="app">
-    <h1>zalupka</h1>
-    <ul>
-        <li v-for="(item, index) in items">
-            {{ item.name }}
-            <button @click="items.splice(index, 1)">-</button>
-            --
-            {{ item.cost }} amd
-            <span v-for="person in persons">
+    <h1>Split the purchase</h1>
+    <table>
+        <tr v-for="(item, index) in items">
+            <td>
+                <button @click="items.splice(index, 1)">-</button>
+                {{ item.name }}
+            </td>
+            <td>
+                {{ item.cost }}
+            </td>
+            <td>
+                <span v-for="person in persons">
                 <button
                         v-if="item.persons.includes(person)"
                         @click="remove_person_from_item(item, person)"
                 >
-                    remove {{ person }}
+                    {{ person }}
                 </button>
             </span>
-            <span v-if="item.persons.length !== persons.length">
-                --
+            </td>
+            <td>
                 <span v-for="person in persons">
                     <button
                             v-if="!item.persons.includes(person)"
@@ -33,30 +39,40 @@
                         add {{ person }}
                     </button>
                 </span>
-            </span>
-
-        </li>
-    </ul>
+            </td>
+        </tr>
+    </table>
 
     <p>
         Add
-        <input v-model="new_item">
-        <input v-model="new_cost">
+        <input v-model="new_item" placeholder="item">
+        <input v-model="new_cost" placeholder="0">
         <button @click="add_item(items, new_item, new_cost)">add</button>
     </p>
 
     <p>
-        Total: {{ calculate_total(items) }} amd
+        Total: {{ calculate_total(items) }}
     </p>
-    <ul>
-        <li v-for="(share, key) in calculate_shares(items)">
-            {{ key }} -- {{ Math.floor(share) }} amd
-            <button @click="remove_person(key, persons, items)">remove {{ key }}</button>
-        </li>
-        <li>
-            <button @click="add_person(new_person, persons, items)">Add</button>
-            <input v-model="new_person"></li>
-    </ul>
+    <table>
+        <tr v-for="(share, key) in calculate_shares(items)">
+            <td>
+                <button @click="remove_person(key, persons, items)">-</button>
+                {{ key }}
+            </td>
+            <td>
+                {{ Math.floor(share) }}
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <button @click="add_person(new_person, persons, items)">Add</button>
+            </td>
+            <td>
+                <input v-model="new_person" placeholder="someone">
+        </tr>
+        </td>
+        </tr>
+    </table>
     <p>
         <a :href="'#' + generate_hash_value(persons, items)">Persistent link</a>
     </p>
@@ -73,19 +89,19 @@
                 items: []
             }
         } else {
-            return JSON.parse(atob(hash_value.substring(1)))
+            return JSON.parse(decodeURIComponent(escape(atob(hash_value.substring(1)))))
         }
     }
 
     const generate_hash_value = function (persons, items) {
-        return btoa(JSON.stringify({persons: persons, items: items}))
+        return btoa(unescape(encodeURIComponent(JSON.stringify({persons: persons, items: items}))))
     }
 
     const {persons, items} = parse_init_data(window.location.hash)
 
-    const new_item = ref("item")
-    const new_cost = ref(0)
-    const new_person = ref("someone")
+    const new_item = ref("")
+    const new_cost = ref("")
+    const new_person = ref("")
 
     const add_person_to_item = function (item, person) {
         const index = item.persons.indexOf(person)
@@ -103,7 +119,7 @@
 
     const add_item = function (items, name, cost) {
         let parsedCost = parseInt(cost);
-        if(parsedCost) {
+        if (parsedCost) {
             items.push(
                 {
                     name: name,
@@ -111,8 +127,8 @@
                     persons: [...persons]
                 }
             )
-            new_item.value = "item"
-            new_cost.value = 0
+            new_item.value = ""
+            new_cost.value = ""
         }
     }
 
@@ -145,7 +161,7 @@
                 add_person_to_item(item, person)
             }
         }
-        new_person.value = "someone"
+        new_person.value = ""
     }
 
     const remove_person = function (person, persons, items) {
