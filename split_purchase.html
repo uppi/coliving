@@ -46,7 +46,7 @@
     <p>
         Add
         <input v-model="new_item" placeholder="item">
-        <input v-model="new_cost" placeholder="0">
+        <input v-model="new_cost" placeholder="0" type="number" @keydown="add_item_if_enter(items, new_item, new_cost)">
         <button @click="add_item(items, new_item, new_cost)">add</button>
     </p>
 
@@ -114,6 +114,12 @@
         const index = item.persons.indexOf(person)
         if (index !== -1) {
             item.persons.splice(index, 1)
+        }
+    }
+
+    const add_item_if_enter = function (items, name, cost) {
+        if(window.event.key === 'Enter') {
+            add_item(items, name, cost)
         }
     }
 
@@ -185,6 +191,7 @@
                 add_person_to_item: add_person_to_item,
                 remove_person_from_item: remove_person_from_item,
                 add_item: add_item,
+                add_item_if_enter: add_item_if_enter,
                 calculate_shares: calculate_shares,
                 calculate_total: calculate_total,
                 add_person: add_person,
