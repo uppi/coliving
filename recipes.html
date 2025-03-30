@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recipe Search</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    .checkbox-container {
+      margin-bottom: 20px;
+    }
+    .recipe {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+    }
+    .recipe h2 {
+      margin: 0;
+      cursor: pointer;
+      font-size: 18px;
+    }
+    .recipe-details {
+      display: none;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    .recipe-details p {
+      margin: 4px 0;
+      white-space: pre-wrap;
+    }
+    .highlight {
+      background-color: yellow;
+    }
+  </style>
+</head>
+<body>
+  <input type="text" id="search" placeholder="Поиск по рецептам..." />
+  <div id="recipeList"></div>
+  <div class="checkbox-container">
+    <input type="checkbox" id="includeCooking" />
+    <label for="includeCooking">Искать в "Как готовить"</label>
+  </div>
+  <hr>
+  <form enctype="multipart/form-data">
+    <input id="upload" type="file" accept="application/json" name="recipes">
+  </form>
+  <a href="javascript:clearRecipesData()">Удалить рецепты</a>
+  <script>
+    var recipesObject = {"recipes": []};
+    if(localStorage["recipes.object"]) {
+      recipesObject = JSON.parse(localStorage["recipes.object"])
+    }
+    var recipes = recipesObject.recipes || [];
+
+    function clearRecipesData() {
+      if (window.confirm(
+          "Удалить рецепты? Их придется загрузить заново. Влияет только на этот браузер.")) {
+        localStorage.removeItem("recipes.object")
+        window.location.reload();
+      }
+    }
+
+    const recipeList = document.getElementById('recipeList');
+    const searchInput = document.getElementById('search');
+    const includeCookingCheckbox = document.getElementById('includeCooking');
+    const uploadInput = document.getElementById("upload");
+
+    function escapeRegExp(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function highlightText(text, filter) {
+      if (!filter) return text;
+      const escapedFilter = escapeRegExp(filter);
+      const regex = new RegExp(escapedFilter, 'gi');
+      return text.replace(regex, match => '<span class="highlight">' + match + '</span>');
+    }
+
+    function createRecipeElement(recipe, filter) {
+      const container = document.createElement('div');
+      container.className = 'recipe';
+
+      const header = document.createElement('h2');
+      header.innerHTML = highlightText(recipe.name, filter);
+      container.appendChild(header);
+
+      const details = document.createElement('div');
+      details.className = 'recipe-details';
+      details.innerHTML =
+        '<p><small>' + recipe.source + '</small></p>' +
+        '<p>' + highlightText(recipe.initial_text, filter) + '</p>' +
+        '<p><strong>Ингредиенты:</strong><br>' + highlightText(recipe.ingredients, filter) + '</p>' +
+        '<p><strong>Как готовить:</strong><br>' + highlightText(recipe.cooking, filter) + '</p>';
+      container.appendChild(details);
+
+      header.addEventListener('click', function() {
+        details.style.display = details.style.display === 'block' ? 'none' : 'block';
+      });
+
+      return container;
+    }
+
+    function renderRecipes(filter = '') {
+      recipeList.innerHTML = '';
+      const includeCooking = includeCookingCheckbox.checked;
+      recipes.forEach(recipe => {
+        let combinedText = recipe.name + ' ' + recipe.initial_text + ' ' + recipe.ingredients;
+        if (includeCooking) {
+          combinedText += ' ' + recipe.cooking;
+        }
+        if (combinedText.toLowerCase().includes(filter.toLowerCase())) {
+          const recipeElement = createRecipeElement(recipe, filter);
+          recipeList.appendChild(recipeElement);
+        }
+      });
+    }
+
+    async function handleRecipesChange(file) {
+      const text = await file.text();
+      return JSON.parse(text)
+    }
+
+    searchInput.addEventListener('input', function() {
+      renderRecipes(this.value);
+    });
+
+    includeCookingCheckbox.addEventListener('change', function() {
+      renderRecipes(searchInput.value);
+    });
+
+    uploadInput.addEventListener("change", async function() {
+      recipesObject = await handleRecipesChange(this.files[0]);
+      localStorage["recipes.object"] = JSON.stringify(recipesObject)
+      recipes = recipesObject.recipes;
+      renderRecipes(searchInput.value)
+    }, false);
+
+    renderRecipes();
+  </script>
+</body>
+</html>
