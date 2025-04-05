@@ -46,22 +46,67 @@
 </head>
 <body>
   <input type="text" id="search" placeholder="Поиск по рецептам..." />
-  <div id="recipeList"></div>
   <div class="checkbox-container">
     <input type="checkbox" id="includeCooking" />
     <label for="includeCooking">Искать в "Как готовить"</label>
+
+    <input type="checkbox" id="includeAlternatives" />
+    <label for="includeAlternatives">Искать в "Замены"</label>
   </div>
+  <div id="recipeList"></div>
   <hr>
   <form enctype="multipart/form-data">
     <input id="upload" type="file" accept="application/json" name="recipes">
   </form>
   <a href="javascript:clearRecipesData()">Удалить рецепты</a>
   <script>
-    var recipesObject = {"recipes": []};
+    function parseLocationHash() {
+      try {
+        return JSON.parse(decodeURIComponent(escape(atob(window.location.hash.substring(1)))))
+      }
+      catch(e) {
+        console.log(e)
+      }
+    }
+
+    var recipesObject = {"recipes": [], "version": 2};
+
     if(localStorage["recipes.object"]) {
       recipesObject = JSON.parse(localStorage["recipes.object"])
     }
+
+    if(window.location.hash.length > 2) {
+      const objectFromHash = parseLocationHash()
+      if(objectFromHash) {
+        recipesObject = objectFromHash;
+      }
+    }
+
     var recipes = recipesObject.recipes || [];
+
+
+    function generateSingleRecipeLocationHash(recipeIndex) {
+        const hashValue = btoa(unescape(encodeURIComponent(JSON.stringify({
+          recipes: [recipes[recipeIndex]]
+        }))))
+        return hashValue
+    }
+
+    function copySingleRecipeLink(recipeIndex) {
+      const url = new URL(window.location.href);
+      url.hash = generateSingleRecipeLocationHash(recipeIndex)
+      navigator.clipboard.writeText(url.href);
+    }
+
+    function goToSingleRecipe(recipeIndex) {
+      window.location.hash = generateSingleRecipeLocationHash(recipeIndex);
+      window.location.reload()
+    }
+
+    function goToRecipeList() {
+      window.location.hash = "";
+      window.location.reload()
+    }
 
     function clearRecipesData() {
       if (window.confirm(
@@ -74,6 +119,7 @@
     const recipeList = document.getElementById('recipeList');
     const searchInput = document.getElementById('search');
     const includeCookingCheckbox = document.getElementById('includeCooking');
+    const includeAlternativesCheckbox = document.getElementById('includeAlternatives');
     const uploadInput = document.getElementById("upload");
 
     function escapeRegExp(string) {
@@ -82,12 +128,20 @@
 
     function highlightText(text, filter) {
       if (!filter) return text;
-      const escapedFilter = escapeRegExp(filter);
-      const regex = new RegExp(escapedFilter, 'gi');
+
+      const words = filter.split(/\s+/).filter(word => word.length > 0);
+
+      const positiveWords = words.filter(word => word[0] !== '-');
+      if (positiveWords.length === 0) return text;
+
+      const escapedWords = positiveWords.map(word => escapeRegExp(word));
+      const pattern = escapedWords.map(word => `(?:${word})`).join('|');
+
+      const regex = new RegExp(pattern, 'gi');
       return text.replace(regex, match => '<span class="highlight">' + match + '</span>');
     }
 
-    function createRecipeElement(recipe, filter) {
+    function createRecipeElement(recipe, index, filter) {
       const container = document.createElement('div');
       container.className = 'recipe';
 
@@ -97,16 +151,31 @@
 
       const details = document.createElement('div');
       details.className = 'recipe-details';
-      details.innerHTML =
-        '<p><small>' + recipe.source + '</small></p>' +
-        '<p>' + highlightText(recipe.initial_text, filter) + '</p>' +
+      var innerHTML = '<p>' + highlightText(recipe.initial_text, filter) + '</p>' +
         '<p><strong>Ингредиенты:</strong><br>' + highlightText(recipe.ingredients, filter) + '</p>' +
         '<p><strong>Как готовить:</strong><br>' + highlightText(recipe.cooking, filter) + '</p>';
+      if(recipe.alternatives) {
+        innerHTML += '<p><strong>Замены:</strong><br>' + highlightText(recipe.alternatives, filter) + '</p>';
+      }
+      innerHTML += '<p><small>' + recipe.source + '</small></p>'
+      if(recipes.length == 1) {
+        if(localStorage["recipes.object"]) {
+          innerHTML += "<p><a href='javascript:goToRecipeList()'>К списку рецептов</a></p>"  
+        }
+      } else {
+        innerHTML += "<p><a href='javascript:copySingleRecipeLink(" + index + ")'>Скопировать ссылку на рецепт</a></p>"  
+      }
+      
+      details.innerHTML = innerHTML;
       container.appendChild(details);
 
       header.addEventListener('click', function() {
         details.style.display = details.style.display === 'block' ? 'none' : 'block';
       });
+
+      if(recipes.length == 1) {
+        details.style.display = 'block';
+      }
 
       return container;
     }
@@ -114,13 +183,48 @@
     function renderRecipes(filter = '') {
       recipeList.innerHTML = '';
       const includeCooking = includeCookingCheckbox.checked;
-      recipes.forEach(recipe => {
+      const includeAlternatives = includeAlternativesCheckbox.checked;
+
+      const words = filter.split(/\s+/).filter(word => word.trim() !== '');
+
+      const positiveWords = words
+        .filter(word => word[0] !== '-')
+        .map(word => word.toLowerCase());
+
+      const negativeWords = words
+        .filter(word => word[0] === '-')
+        .map(word => word.slice(1).toLowerCase());
+
+      recipes.forEach((recipe, index) => {
         let combinedText = recipe.name + ' ' + recipe.initial_text + ' ' + recipe.ingredients;
+        if (includeAlternatives) {
+          combinedText += ' ' + recipe.alternatives;
+        }
         if (includeCooking) {
           combinedText += ' ' + recipe.cooking;
         }
-        if (combinedText.toLowerCase().includes(filter.toLowerCase())) {
-          const recipeElement = createRecipeElement(recipe, filter);
+        const lowerCombinedText = combinedText.toLowerCase();
+
+        let includeRecipe = true;
+
+        for (const pos of positiveWords) {
+          if (!lowerCombinedText.includes(pos)) {
+            includeRecipe = false;
+            break;
+          }
+        }
+
+        if(includeRecipe) {
+          for (const neg of negativeWords) {
+            if (lowerCombinedText.includes(neg)) {
+              includeRecipe = false;
+              break;
+            }
+          }
+        }
+
+        if (includeRecipe) {
+          const recipeElement = createRecipeElement(recipe, index, filter);
           recipeList.appendChild(recipeElement);
         }
       });
@@ -136,6 +240,10 @@
     });
 
     includeCookingCheckbox.addEventListener('change', function() {
+      renderRecipes(searchInput.value);
+    });
+
+    includeAlternativesCheckbox.addEventListener('change', function() {
       renderRecipes(searchInput.value);
     });
 
