@@ -39,8 +39,44 @@
       margin: 4px 0;
       white-space: pre-wrap;
     }
+    label {
+      font-size: 12px;
+    }
+
+    body {
+      background-color: #ffffff;
+      color: #0f0f0f;
+    }
+    a {
+      color: rgb(55, 55, 55);
+    }
     .highlight {
       background-color: yellow;
+    }
+    @media (prefers-color-scheme: dark) {
+      a {
+        color: rgb(175, 175, 175);
+      }
+      label {
+        color: rgb(175, 175, 175);
+      }
+      body {
+        background-color: #090909;
+        color: #ffffff;
+      }
+      input {
+        border-radius: 4px;
+        box-sizing: border-box;
+        border: 1px #666;
+        background: rgb(35, 34, 43);
+        color: #fff;
+      }
+      .recipe {
+        border: 1px solid rgb(103, 103, 103);
+      }
+      .highlight {
+        background-color: rgb(103, 103, 103); 
+      }
     }
   </style>
 </head>
@@ -62,7 +98,8 @@
   <script>
     function parseLocationHash() {
       try {
-        return JSON.parse(decodeURIComponent(escape(atob(window.location.hash.substring(1)))))
+
+        return JSON.parse(decodeURIComponent(escape(atob(window.location.hash.substring(1)))))  
       }
       catch(e) {
         console.log(e)
