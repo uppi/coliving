@@ -18,7 +18,7 @@
                 {{ item.name }}
             </td>
             <td>
-                {{ item.cost }}
+                <input v-model="item.cost" type="number">
             </td>
             <td>
                 <span v-for="person in persons">
@@ -76,6 +76,13 @@
     <p>
         <a :href="'#' + generate_hash_value(persons, items)">Persistent link</a>
     </p>
+    <div>
+        <p>Import multiple items</p>
+        <textarea v-model="new_items_batch" placeholder="item 123&#10;other 322"></textarea>
+    </div>
+    <div>
+        <button @click="add_items_batch(items, new_items_batch)">Import</button>
+    </div>
 </div>
 
 
@@ -102,6 +109,7 @@
     const new_item = ref("")
     const new_cost = ref("")
     const new_person = ref("")
+    const new_items_batch = ref("")
 
     const add_person_to_item = function (item, person) {
         const index = item.persons.indexOf(person)
@@ -136,6 +144,19 @@
             new_item.value = ""
             new_cost.value = ""
         }
+    }
+
+    const add_items_batch = function (items, new_items_batch) {
+        new_items_batch.split("\n").forEach(
+            (line) => {
+                console.log(line)
+                const match = line.match(/(.+) (\d+)/);
+                if(match) {
+                    add_item(items, match[1], match[2])
+                }
+            }
+        )
+        new_items_batch.value = ""
     }
 
     const calculate_shares = function (items) {
@@ -188,6 +209,7 @@
                 new_cost: new_cost,
                 new_person: new_person,
                 persons: persons,
+                new_items_batch: new_items_batch,
                 add_person_to_item: add_person_to_item,
                 remove_person_from_item: remove_person_from_item,
                 add_item: add_item,
@@ -196,7 +218,8 @@
                 calculate_total: calculate_total,
                 add_person: add_person,
                 remove_person: remove_person,
-                generate_hash_value: generate_hash_value
+                generate_hash_value: generate_hash_value,
+                add_items_batch: add_items_batch
             }
         }
     }).mount("#app")
