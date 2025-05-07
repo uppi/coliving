@@ -5,12 +5,124 @@
     <title>Title</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://unpkg.com/vue@3"></script>
+
+    <style>
+        *,
+        *::before,
+        *::after {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+        }
+
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          line-height: 1.5;
+          color: #111;
+          background-color: #fafafa;
+          padding: 1rem;
+        }
+
+        h1 {
+          margin-bottom: 1rem;
+          font-size: 1.75rem;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 1rem;
+        }
+
+        td {
+          border: 1px solid #ddd;
+          padding: 0.5rem;
+          vertical-align: middle;
+        }
+
+        tr:nth-child(even) {
+          background-color: #fefefe;
+        }
+
+        input[type="number"],
+        input[type="text"],
+        textarea {
+          width: 100%;
+          padding: 0.4rem;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+          font-size: 1rem;
+          background-color: #fff;
+        }
+
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+
+        input[type="number"] {
+          -moz-appearance: textfield;
+        }
+
+        textarea {
+          min-height: 5rem;
+          resize: vertical;
+        }
+
+        button {
+          padding: 0.4rem 0.6rem;
+          margin: 0 0.2rem;
+          font-size: 0.9rem;
+          border: 1px solid #888;
+          border-radius: 4px;
+          background-color: #fff;
+          color: #111;
+          cursor: pointer;
+          transition: background-color 0.2s, border-color 0.2s;
+        }
+
+        button:hover {
+          background-color: #f0f0f0;
+          border-color: #666;
+        }
+
+        button.btn-add {
+          background-color: #888;
+          border: 1px solid #888;
+          color: #fff;
+        }
+        button.btn-add:hover {
+          background-color: #666;
+          border-color: #666;
+        }
+
+        a {
+          color: #0366d6;
+          text-decoration: none;
+        }
+        a:hover {
+          text-decoration: underline;
+        }
+
+        p {
+          margin-bottom: 1rem;
+        }
+
+        .add-person-row input {
+          width: auto;
+          display: inline-block;
+          vertical-align: middle;
+          margin-left: 0.5rem;
+        }
+    </style>
 </head>
 <body>
 
 
 <div id="app">
     <h1>Split the purchase</h1>
+    <h3>Items</h3>
     <table>
         <tr v-for="(item, index) in items">
             <td>
@@ -18,7 +130,7 @@
                 {{ item.name }}
             </td>
             <td>
-                <input v-model="item.cost" type="number">
+                <input v-model="item.cost" type="number" step=0.01>
             </td>
             <td>
                 <span v-for="person in persons">
@@ -41,18 +153,32 @@
                 </span>
             </td>
         </tr>
+        <tr>
+            <td>
+                <input v-model="new_item" placeholder="item" type="text">
+            </td>
+            <td>
+                <input v-model="new_cost" placeholder="0" type="number" step=0.01 @keydown="add_item_if_enter(items, new_item, new_cost)">
+            </td>
+            <td>
+                <button class="btn-add" @click="add_item(items, new_item, new_cost)">Add</button>
+            </td>
+        </tr>
     </table>
-
     <p>
-        Add
-        <input v-model="new_item" placeholder="item">
-        <input v-model="new_cost" placeholder="0" type="number" @keydown="add_item_if_enter(items, new_item, new_cost)">
-        <button @click="add_item(items, new_item, new_cost)">add</button>
+      <a @click="show_batch_import = !show_batch_import" style="cursor: pointer;">
+        {{ show_batch_import ? 'Hide import section' : 'Import multiple items' }}
+      </a>
     </p>
-
     <p>
-        Total: {{ calculate_total(items) }}
+        Total: {{ calculate_total(items).toFixed(2) }}
     </p>
+    <div v-if="show_batch_import">
+        <p>Import multiple items</p>
+        <textarea v-model="new_items_batch" placeholder="item 123&#10;other 322"></textarea>
+        <button class="btn-add" @click="add_items_batch(items, new_items_batch)">Import</button>
+    </div>
+    <h3>Persons</h3>
     <table>
         <tr v-for="(share, key) in calculate_shares(items)">
             <td>
@@ -60,29 +186,22 @@
                 {{ key }}
             </td>
             <td>
-                {{ Math.floor(share) }}
+                {{ share.toFixed(2) }}
             </td>
         </tr>
         <tr>
             <td>
-                <button @click="add_person(new_person, persons, items)">Add</button>
+                <input v-model="new_person" placeholder="someone" type="text">
             </td>
             <td>
-                <input v-model="new_person" placeholder="someone">
+                <button class="btn-add" @click="add_person(new_person, persons, items)">Add</button>
+            </td>
         </tr>
-        </td>
         </tr>
     </table>
     <p>
         <a :href="'#' + generate_hash_value(persons, items)">Persistent link</a>
     </p>
-    <div>
-        <p>Import multiple items</p>
-        <textarea v-model="new_items_batch" placeholder="item 123&#10;other 322"></textarea>
-    </div>
-    <div>
-        <button @click="add_items_batch(items, new_items_batch)">Import</button>
-    </div>
 </div>
 
 
@@ -110,6 +229,7 @@
     const new_cost = ref("")
     const new_person = ref("")
     const new_items_batch = ref("")
+    const show_batch_import = ref(false)
 
     const add_person_to_item = function (item, person) {
         const index = item.persons.indexOf(person)
@@ -132,7 +252,7 @@
     }
 
     const add_item = function (items, name, cost) {
-        let parsedCost = parseInt(cost);
+        let parsedCost = parseFloat(cost);
         if (parsedCost) {
             items.push(
                 {
@@ -219,7 +339,8 @@
                 add_person: add_person,
                 remove_person: remove_person,
                 generate_hash_value: generate_hash_value,
-                add_items_batch: add_items_batch
+                add_items_batch: add_items_batch,
+                show_batch_import: show_batch_import
             }
         }
     }).mount("#app")
